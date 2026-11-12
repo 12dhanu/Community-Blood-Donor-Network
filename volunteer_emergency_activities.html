@@ -1,0 +1,115 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Emergency Activities</title>
+    <style>
+        * { box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { margin: 0; background: #f4f6f9; color: #333; }
+        header {
+            background: #6a1b9a; color: white; padding: 18px 5%;
+            display: flex; justify-content: space-between;
+            align-items: center; flex-wrap: wrap;
+        }
+        header a { color: white; text-decoration: none; margin: 5px 10px; }
+        .logout {
+            background: white; color: #6a1b9a !important;
+            padding: 9px 14px; border-radius: 5px; font-weight: bold;
+        }
+        .container { max-width: 1050px; margin: 30px auto; padding: 0 18px; }
+        .panel {
+            background: white; padding: 22px; border-radius: 9px;
+            box-shadow: 0 2px 9px #0001; margin-bottom: 18px;
+        }
+        button {
+            background: #6a1b9a; color: white; border: none;
+            padding: 10px 15px; border-radius: 5px; cursor: pointer;
+        }
+        .flash {
+            padding: 12px; background: #f3e5f5;
+            border-left: 4px solid #6a1b9a; margin: 12px 0;
+        }
+        .muted { color: #666; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+<header>
+    <strong>🤝 Emergency Activities</strong>
+    <nav>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('notifications') }}">Notifications</a>
+        <a class="logout" href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+</header>
+
+<main class="container">
+
+    <p><a href="{{ url_for('dashboard') }}">← Back to Dashboard</a></p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="flash">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <h1>Available Emergency Activities</h1>
+
+    <p class="muted">
+        Review each request. Accept only an activity you are able to help with.
+    </p>
+
+    {% if activities %}
+
+        {% for item in activities %}
+
+            <section class="panel">
+
+                <h2>{{ item.emergency_type or 'Emergency Support' }}</h2>
+
+                <p>
+                    <strong>Description:</strong>
+                    {{ item.description or 'No description provided' }}
+                </p>
+
+                <p>
+                    <strong>Location:</strong>
+                    {{ item.location or 'Not provided' }}
+                </p>
+
+                <p><strong>Status:</strong> {{ item.status }}</p>
+                <p><strong>Submitted:</strong> {{ item.created_at }}</p>
+
+                {% if item.status == 'Pending' and not item.volunteer_id %}
+
+                    <form method="POST"
+                          action="{{ url_for('volunteer_accept_emergency', emergency_id=item.emergency_id) }}">
+
+                        <button type="submit">Accept This Activity</button>
+
+                    </form>
+
+                {% elif item.volunteer_id %}
+
+                    <p>This activity has already been assigned.</p>
+
+                {% endif %}
+
+            </section>
+
+        {% endfor %}
+
+    {% else %}
+
+        <section class="panel">
+            <h3>No emergency activities are available right now.</h3>
+            <p>Check again later for new requests.</p>
+        </section>
+
+    {% endif %}
+
+</main>
+</body>
+</html>

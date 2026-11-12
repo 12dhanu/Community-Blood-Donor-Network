@@ -1,0 +1,257 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blood Requests - Donor Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 30px auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        h1 {
+            color: #c0392b;
+            text-align: center;
+        }
+
+        .profile {
+            background: #fff3f3;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+
+        th {
+            background: #c0392b;
+            color: white;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+        }
+
+        .Critical {
+            color: #c0392b;
+            font-weight: bold;
+        }
+
+        .Urgent {
+            color: #e67e22;
+            font-weight: bold;
+        }
+
+        .Normal {
+            color: #27ae60;
+            font-weight: bold;
+        }
+
+        .empty {
+            text-align: center;
+            padding: 25px;
+            background: #f9f9f9;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .back {
+            display: inline-block;
+            margin-top: 25px;
+            padding: 10px 18px;
+            background: #c0392b;
+            color: white;
+            text-decoration: none;
+            border-radius: 5px;
+        }
+
+        .accept-button {
+            background: #218838;
+            color: white;
+            border: none;
+            padding: 9px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .accept-button:hover {
+            background: #176b2c;
+        }
+
+        .accepted {
+            color: #218838;
+            font-weight: bold;
+        }
+
+        .message {
+            padding: 12px 15px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+
+        .message.success {
+            background: #e8f5e9;
+            color: #1b5e20;
+            border: 1px solid #a5d6a7;
+        }
+
+        .message.error {
+            background: #ffebee;
+            color: #b71c1c;
+            border: 1px solid #ef9a9a;
+        }
+
+        @media (max-width: 850px) {
+            .container {
+                overflow-x: auto;
+            }
+
+            table {
+                min-width: 950px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Available Blood Requests</h1>
+
+    <div class="profile">
+        <h3>My Donor Profile</h3>
+
+        <p><strong>Blood Group:</strong> {{ donor.blood_group }}</p>
+        <p><strong>City:</strong> {{ donor.city }}</p>
+
+        <p>
+            <strong>Availability:</strong>
+            {% if donor.available %}
+                Available
+            {% else %}
+                Unavailable
+            {% endif %}
+        </p>
+    </div>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            {% for category, message in messages %}
+                <div class="message {{ category }}">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
+    <h2>Matching Blood Requests</h2>
+
+    {% if requests_list %}
+
+    <table>
+        <thead>
+            <tr>
+                <th>Request ID</th>
+                <th>Patient Name</th>
+                <th>Blood Group</th>
+                <th>Units</th>
+                <th>Hospital</th>
+                <th>City</th>
+                <th>Urgency</th>
+                <th>Required Date</th>
+                <th>Status</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for req in requests_list %}
+            <tr>
+                <td>{{ req.request_id }}</td>
+                <td>{{ req.patient_name or 'Not provided' }}</td>
+                <td>{{ req.blood_group }}</td>
+                <td>{{ req.units_required }}</td>
+                <td>{{ req.hospital_name or 'Not provided' }}</td>
+                <td>{{ req.city or 'Not provided' }}</td>
+
+                <td class="{{ req.urgency }}">
+                    {{ req.urgency or 'Normal' }}
+                </td>
+
+                <td>{{ req.required_date or 'Not specified' }}</td>
+                <td>{{ req.status }}</td>
+
+                <td>
+                    {% if req.accepted_by_me %}
+                        <span class="accepted">Accepted by you</span>
+
+                    {% elif req.status == 'Pending' and donor.available %}
+                        <form method="POST"
+                              action="{{ url_for('donor_accept_request', request_id=req.request_id) }}"
+                              onsubmit="return confirm('Are you sure you want to accept this request?');">
+
+                            <button type="submit" class="accept-button">
+                                Accept Request
+                            </button>
+                        </form>
+
+                    {% elif not donor.available %}
+                        <span>Currently unavailable</span>
+
+                    {% else %}
+                        <span>Not available</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    {% else %}
+
+    <div class="empty">
+        <h3>No Matching Blood Requests Found</h3>
+        <p>There are currently no pending requests for your blood group.</p>
+        <p>Please check again later.</p>
+    </div>
+
+    {% endif %}
+
+    <a href="{{ url_for('dashboard') }}" class="back">
+        Back to Dashboard
+    </a>
+
+</div>
+
+</body>
+</html>

@@ -1,0 +1,68 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Donor Dashboard</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: Arial, sans-serif; background: #fff7f7; color: #1e293b; }
+        header { background: #991b1b; color: white; padding: 25px; }
+        header h1 { margin: 0 0 8px; }
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+        .card { display: block; padding: 25px; background: white; border-radius: 12px; text-decoration: none; color: #1e293b; box-shadow: 0 3px 12px #00000012; transition: transform .2s; }
+        .card:hover { transform: translateY(-4px); }
+        .card h2 { margin-top: 0; color: #b91c1c; font-size: 20px; }
+        .card p { margin-bottom: 0; color: #64748b; line-height: 1.5; }
+        .logout { display: inline-block; margin-top: 15px; padding: 10px 16px; background: white; color: #991b1b; text-decoration: none; border-radius: 6px; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Donor Dashboard</h1>
+    <p>Welcome, {{ session.get('user_name', 'Donor') }}!</p>
+    <a class="logout" href="{{ url_for('logout') }}">Logout</a>
+</header>
+
+<div class="container">
+    <div class="grid">
+        <a class="card" href="{{ url_for('donor_profile') }}">
+            <h2>Donor Profile</h2>
+            <p>View and update your donor information.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('donor_blood_requests') }}">
+            <h2>Blood Requests</h2>
+            <p>View matching blood requests and accept requests.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('donor_accepted_requests') }}">
+            <h2>Accepted Requests</h2>
+            <p>View the blood requests you have accepted.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('donor_donation_history') }}">
+            <h2>Donation History</h2>
+            <p>View your recorded blood donations.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('donor_availability') }}">
+            <h2>Availability</h2>
+            <p>Update whether you are currently available to donate.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('donation_camps') }}">
+            <h2>Donation Camps</h2>
+            <p>View upcoming blood donation camps and their details.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('notifications') }}">
+            <h2>Notifications ({{ unread_notification_count }})</h2>
+            <p>View new blood request alerts and other updates.</p>
+        </a>
+    </div>
+</div>
+</body>
+</html>

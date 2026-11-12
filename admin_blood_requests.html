@@ -1,0 +1,153 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Blood Requests</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            overflow-x: auto;
+        }
+
+        h2 {
+            color: #c62828;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            min-width: 1000px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background: #c62828;
+            color: white;
+        }
+
+        select, button {
+            padding: 8px;
+        }
+
+        button {
+            background: #c62828;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+
+        a {
+            color: #c62828;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>🩸 Admin - Manage Blood Requests</h2>
+
+    <p>
+        <a href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+    </p>
+
+    {% if requests_list %}
+
+    <table>
+        <tr>
+            <th>Request ID</th>
+            <th>Requester</th>
+            <th>Patient</th>
+            <th>Blood Group</th>
+            <th>Units</th>
+            <th>Hospital</th>
+            <th>City</th>
+            <th>Urgency</th>
+            <th>Required Date</th>
+            <th>Contact</th>
+            <th>Status</th>
+            <th>Update</th>
+        </tr>
+
+        {% for req in requests_list %}
+
+        <tr>
+            <td>{{ req.request_id }}</td>
+            <td>{{ req.requester_name }}</td>
+            <td>{{ req.patient_name }}</td>
+            <td>{{ req.blood_group }}</td>
+            <td>{{ req.units_required }}</td>
+            <td>{{ req.hospital_name }}</td>
+            <td>{{ req.city }}</td>
+            <td>{{ req.urgency }}</td>
+            <td>{{ req.required_date or "Not specified" }}</td>
+            <td>
+                {{ req.phone }}<br>
+                {{ req.email }}
+            </td>
+            <td>{{ req.status }}</td>
+
+            <td>
+                <form method="POST"
+                    action="{{ url_for('update_blood_request_status', request_id=req.request_id) }}">
+
+                    <select name="status" required>
+                        <option value="Pending"
+                            {% if req.status == "Pending" %}selected{% endif %}>
+                            Pending
+                        </option>
+
+                        <option value="Matched"
+                            {% if req.status == "Matched" %}selected{% endif %}>
+                            Matched
+                        </option>
+
+                        <option value="Completed"
+                            {% if req.status == "Completed" %}selected{% endif %}>
+                            Completed
+                        </option>
+
+                        <option value="Cancelled"
+                            {% if req.status == "Cancelled" %}selected{% endif %}>
+                            Cancelled
+                        </option>
+                    </select>
+
+                    <button type="submit">Update</button>
+
+                </form>
+            </td>
+        </tr>
+
+        {% endfor %}
+
+    </table>
+
+    {% else %}
+
+    <p>No blood requests are available.</p>
+
+    {% endif %}
+
+</div>
+
+</body>
+</html>

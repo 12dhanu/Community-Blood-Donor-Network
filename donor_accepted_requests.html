@@ -1,0 +1,65 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Accepted Requests</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
+        .container { max-width: 1100px; margin: 25px auto; background: white; padding: 25px; border-radius: 10px; }
+        h1 { text-align: center; color: #c0392b; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 11px; text-align: left; }
+        th { background: #c0392b; color: white; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .empty { text-align: center; padding: 25px; background: #f9f9f9; }
+        .back { display: inline-block; margin-top: 20px; padding: 10px 17px; background: #c0392b; color: white; text-decoration: none; border-radius: 5px; }
+        @media(max-width:800px) { .container { overflow-x: auto; } table { min-width: 850px; } }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>My Accepted Blood Requests</h1>
+
+    {% if requests_list %}
+    <table>
+        <thead>
+            <tr>
+                <th>Request ID</th>
+                <th>Patient</th>
+                <th>Blood Group</th>
+                <th>Units</th>
+                <th>Hospital</th>
+                <th>City</th>
+                <th>Required Date</th>
+                <th>Accepted At</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for req in requests_list %}
+            <tr>
+                <td>{{ req.request_id }}</td>
+                <td>{{ req.patient_name or 'Not provided' }}</td>
+                <td>{{ req.blood_group }}</td>
+                <td>{{ req.units_required }}</td>
+                <td>{{ req.hospital_name or 'Not provided' }}</td>
+                <td>{{ req.city or 'Not provided' }}</td>
+                <td>{{ req.required_date or 'Not specified' }}</td>
+                <td>{{ req.accepted_at or 'Not available' }}</td>
+                <td>{{ req.status }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="empty">
+        <h3>You have not accepted any blood requests yet.</h3>
+    </div>
+    {% endif %}
+
+    <a class="back" href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+</div>
+</body>
+</html>

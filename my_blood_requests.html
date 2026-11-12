@@ -1,0 +1,99 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Blood Requests</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1000px;
+            margin: auto;
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+        }
+
+        h2 {
+            color: #c62828;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+
+        th {
+            background: #c62828;
+            color: white;
+        }
+
+        a {
+            color: #c62828;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <h2>My Blood Requests</h2>
+
+    <p>
+        <a href="{{ url_for('blood_request') }}">Create New Request</a>
+        |
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+    </p>
+
+    {% if requests_list %}
+
+    <table>
+        <tr>
+            <th>ID</th>
+            <th>Patient</th>
+            <th>Blood Group</th>
+            <th>Units</th>
+            <th>Hospital</th>
+            <th>City</th>
+            <th>Urgency</th>
+            <th>Required Date</th>
+            <th>Status</th>
+        </tr>
+
+        {% for req in requests_list %}
+        <tr>
+            <td>{{ req.request_id }}</td>
+            <td>{{ req.patient_name }}</td>
+            <td>{{ req.blood_group }}</td>
+            <td>{{ req.units_required }}</td>
+            <td>{{ req.hospital_name }}</td>
+            <td>{{ req.city }}</td>
+            <td>{{ req.urgency }}</td>
+            <td>{{ req.required_date or "Not specified" }}</td>
+            <td>{{ req.status }}</td>
+        </tr>
+        {% endfor %}
+
+    </table>
+
+    {% else %}
+
+    <p>You have not submitted any blood requests yet.</p>
+
+    {% endif %}
+
+</div>
+
+</body>
+</html>

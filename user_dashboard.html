@@ -1,0 +1,73 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; font-family: Arial, sans-serif; background: #fff7f7; color: #1e293b; }
+        header { background: #991b1b; color: white; padding: 25px; }
+        header h1 { margin: 0 0 8px; }
+        .container { max-width: 1100px; margin: 30px auto; padding: 0 20px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; }
+        .card { display: block; padding: 25px; background: white; border-radius: 12px; text-decoration: none; color: #1e293b; box-shadow: 0 3px 12px #00000012; transition: transform .2s; }
+        .card:hover { transform: translateY(-4px); }
+        .card h2 { margin-top: 0; color: #b91c1c; font-size: 20px; }
+        .card p { margin-bottom: 0; color: #64748b; line-height: 1.5; }
+        .logout { display: inline-block; margin-top: 15px; padding: 10px 16px; background: white; color: #991b1b; text-decoration: none; border-radius: 6px; }
+    </style>
+</head>
+<body>
+<header>
+    <h1>User Dashboard</h1>
+    <p>Welcome, {{ session.get('user_name', 'User') }}!</p>
+    <a class="logout" href="{{ url_for('logout') }}">Logout</a>
+</header>
+
+<div class="container">
+    <div class="grid">
+        <a class="card" href="#">
+            <h2>Find Blood Donors</h2>
+            <p>Find donors who may be able to help with a blood requirement.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('blood_request') }}">
+            <h2>Submit Blood Request</h2>
+            <p>Submit a new request for blood assistance.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('my_blood_requests') }}">
+            <h2>My Blood Requests</h2>
+            <p>View the status of your submitted blood requests.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('submit_volunteer_request') }}">
+            <h2>Request Emergency Volunteers</h2>
+            <p>Request volunteer assistance during an emergency.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('my_volunteer_requests') }}">
+            <h2>My Volunteer Requests</h2>
+            <p>Track your emergency volunteer requests.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('donation_camps') }}">
+            <h2>Donation Camps</h2>
+            <p>View upcoming blood donation camps and their details.</p>
+        </a>
+
+        <a class="card" href="{{ url_for('notifications') }}">
+            <h2>Notifications ({{ unread_notification_count }})</h2>
+            <p>View updates and messages about your requests.</p>
+        </a>
+
+        <a class="card" href="#">
+            <h2>My Profile</h2>
+            <p>View and manage your account information.</p>
+        </a>
+    </div>
+</div>
+</body>
+</html>

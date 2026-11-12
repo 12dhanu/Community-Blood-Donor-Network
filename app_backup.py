@@ -1,0 +1,1327 @@
+
+from datetime import date
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+from database import get_connection
+from werkzeug.security import generate_password_hash, check_password_hash
+
+app = Flask(__name__)
+app.secret_key = "blood_network_secret_key"
+
+BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"]
+
+
+# --------------------------------------------------
+# COMMON HELPERS
+# --------------------------------------------------
+
+def login_required():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    return None
+
+
+def role_required(role):
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+
+    if session.get("role") != role:
+        return "Access Denied!"
+
+    return None
+
+
+# BATCH 3: CREATE NOTIFICATION
+
+def create_notification(cursor, user_id, message):
+    cursor.execute("""
+        INSERT INTO notifications (user_id, message, is_read)
+        VALUES (%s, %s, 0)
+    """, (user_id, message))
+
+
+# BATCH 3: UNREAD NOTIFICATION COUNT
+
+@app.context_processor
+def inject_unread_count():
+    unread_count = 0
+
+    if "user_id" in session:
+        connection = get_connection()
+
+        if connection:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("""
+                    SELECT COUNT(*)
+                    FROM notifications
+                    WHERE user_id = %s AND is_read = 0
+                """, (session["user_id"],))
+
+                result = cursor.fetchone()
+                unread_count = result[0] if result else 0
+
+            except Exception:
+                unread_count = 0
+
+            finally:
+                cursor.close()
+                connection.close()
+
+    return {"unread_notification_count": unread_count}
+
+
+# --------------------------------------------------
+# HOME PAGE
+# --------------------------------------------------
+
+@app.route("/")
+def home():
+    return render_template("index.html")
+
+
+# --------------------------------------------------
+# TEST DATABASE
+# --------------------------------------------------
+
+@app.route("/test-db")
+def test_db():
+    connection = get_connection()
+
+    if connection:
+        connection.close()
+        return "MySQL Database Connected Successfully!"
+
+    return "Database Connection Failed!"
+
+
+# --------------------------------------------------
+# REGISTER
+# --------------------------------------------------
+
+@app.route("/register", methods=["GET", "POST"])
+def register():
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        email = request.form.get("email", "").strip()
+        phone = request.form.get("phone", "").strip()
+        password = request.form.get("password", "")
+        confirm_password = request.form.get("confirm_password", "")
+        role = request.form.get("role")
+
+        if not name or not email or not phone or not password:
+            return "Please fill in all required fields."
+
+        if password != confirm_password:
+            return "Passwords do not match!"
+
+        if role not in ["user", "donor", "volunteer"]:
+            return "Invalid registration role!"
+
+        donor_blood_group = None
+        donor_city = None
+        donor_address = None
+
+        if role == "donor":
+            donor_blood_group = request.form.get("blood_group")
+            donor_city = request.form.get("city", "").strip()
+            donor_address = request.form.get("address", "").strip()
+
+            if donor_blood_group not in BLOOD_GROUPS:
+                return "Please select a valid blood group."
+
+            if not donor_city or not donor_address:
+                return "Please enter all donor details."
+
+        hashed_password = generate_password_hash(password)
+        connection = get_connection()
+
+        if connection is None:
+            return "Database Connection Failed!"
+
+        cursor = connection.cursor()
+
+        try:
+            cursor.execute("""
+                INSERT INTO users
+                (full_name, email, phone, password, role)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (name, email, phone, hashed_password, role))
+
+            user_id = cursor.lastrowid
+
+            if role == "donor":
+                cursor.execute("""
+                    INSERT INTO donors
+                    (user_id, blood_group, city, address, available)
+                    VALUES (%s, %s, %s, %s, 1)
+                """, (
+                    user_id,
+                    donor_blood_group,
+                    donor_city,
+                    donor_address
+                ))
+
+            connection.commit()
+            flash("Registration successful. Please log in.", "success")
+            return redirect(url_for("login"))
+
+        except Exception as error:
+            connection.rollback()
+            return "Registration Error: " + str(error)
+
+        finally:
+            cursor.close()
+            connection.close()
+
+    return render_template("register.html")
+
+
+# --------------------------------------------------
+# LOGIN
+# --------------------------------------------------
+
+@app.route("/login", methods=["GET", "POST"])
+def login():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "")
+
+        connection = get_connection()
+
+        if connection is None:
+            return "Database Connection Failed!"
+
+        cursor = connection.cursor(dictionary=True)
+
+        try:
+            cursor.execute(
+                "SELECT * FROM users WHERE email = %s",
+                (email,)
+            )
+            user = cursor.fetchone()
+
+        finally:
+            cursor.close()
+            connection.close()
+
+        if user and check_password_hash(user["password"], password):
+            session.clear()
+            session["user_id"] = user["user_id"]
+            session["user_name"] = user["full_name"]
+            session["role"] = user["role"]
+            return redirect(url_for("dashboard"))
+
+        return "Invalid Email or Password!"
+
+    return render_template("login.html")
+
+
+# --------------------------------------------------
+# DASHBOARD
+# --------------------------------------------------
+
+@app.route("/dashboard")
+def dashboard():
+    check = login_required()
+    if check:
+        return check
+
+    role = session.get("role")
+
+    if role == "user":
+        return render_template("user_dashboard.html")
+
+    if role == "donor":
+        return render_template("donor_dashboard.html")
+
+    if role == "volunteer":
+        return render_template("volunteer_dashboard.html")
+
+    if role == "admin":
+        return render_template("admin_dashboard.html")
+
+    return "Invalid User Role!"
+
+
+# --------------------------------------------------
+# ADMIN - MANAGE USERS
+# --------------------------------------------------
+
+@app.route("/admin/users")
+def admin_users():
+    check = role_required("admin")
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT user_id, full_name, email, phone, role, created_at
+            FROM users
+            ORDER BY user_id DESC
+        """)
+
+        users = cursor.fetchall()
+        return render_template("admin_users.html", users=users)
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# ADMIN - MANAGE DONORS
+# --------------------------------------------------
+
+@app.route("/admin/donors")
+def admin_donors():
+    check = role_required("admin")
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT
+                d.donor_id, d.user_id, u.full_name, u.email, u.phone,
+                d.blood_group, d.city, d.address, d.available,
+                d.last_donation_date
+            FROM donors d
+            INNER JOIN users u ON d.user_id = u.user_id
+            ORDER BY d.donor_id DESC
+        """)
+
+        donors = cursor.fetchall()
+        return render_template("admin_donors.html", donors=donors)
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# USER - SUBMIT BLOOD REQUEST
+# --------------------------------------------------
+
+@app.route("/blood-request", methods=["GET", "POST"])
+def blood_request():
+    check = login_required()
+    if check:
+        return check
+
+    if session.get("role") != "user":
+        return "Only registered users can submit blood requests."
+
+    if request.method == "POST":
+        patient_name = request.form.get("patient_name", "").strip()
+        blood_group = request.form.get("blood_group")
+        units_required = request.form.get("units_required")
+        hospital_name = request.form.get("hospital_name", "").strip()
+        city = request.form.get("city", "").strip()
+        urgency = request.form.get("urgency")
+        required_date = request.form.get("required_date") or None
+
+        allowed_urgencies = ["Normal", "Urgent", "Critical"]
+
+        if not patient_name or not hospital_name or not city:
+            return "Please fill in all required fields."
+
+        if blood_group not in BLOOD_GROUPS:
+            return "Please select a valid blood group."
+
+        if urgency not in allowed_urgencies:
+            return "Please select a valid urgency."
+
+        try:
+            units_required = int(units_required)
+
+            if units_required < 1:
+                return "Units required must be at least 1."
+
+            if required_date:
+                required_date = date.fromisoformat(required_date)
+
+                if required_date < date.today():
+                    return "Required date cannot be in the past."
+
+        except (ValueError, TypeError):
+            return "Please enter valid units and date."
+
+        connection = get_connection()
+        if connection is None:
+            return "Database Connection Failed!"
+
+        cursor = connection.cursor()
+
+        try:
+            cursor.execute("""
+                INSERT INTO blood_requests
+                (
+                    user_id, patient_name, blood_group,
+                    units_required, hospital_name, city,
+                    urgency, required_date, status
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'Pending')
+            """, (
+                session["user_id"],
+                patient_name,
+                blood_group,
+                units_required,
+                hospital_name,
+                city,
+                urgency,
+                required_date
+            ))
+
+            request_id = cursor.lastrowid
+
+            # BATCH 3: FIND MATCHING AVAILABLE DONORS
+            cursor.execute("""
+                SELECT user_id
+                FROM donors
+                WHERE blood_group = %s
+                  AND LOWER(TRIM(city)) = LOWER(TRIM(%s))
+                  AND available = 1
+            """, (blood_group, city))
+
+            matching_donors = cursor.fetchall()
+
+            # BATCH 3: NOTIFY EACH MATCHING DONOR
+            message = (
+                f"New {blood_group} blood request in {city}. "
+                f"Patient: {patient_name}. "
+                f"Hospital: {hospital_name}. "
+                f"Units required: {units_required}. "
+                f"Request ID: {request_id}."
+            )
+
+            for donor in matching_donors:
+                create_notification(cursor, donor[0], message)
+
+            connection.commit()
+
+            flash("Blood request submitted successfully.", "success")
+
+            if matching_donors:
+                flash(
+                    f"{len(matching_donors)} matching donor(s) have been notified.",
+                    "success"
+                )
+            else:
+                flash("No available matching donors were found in this city.", "info")
+
+            return redirect(url_for("my_blood_requests"))
+
+        except Exception as error:
+            connection.rollback()
+            return "Blood Request Error: " + str(error)
+
+        finally:
+            cursor.close()
+            connection.close()
+
+    return render_template("blood_request.html")
+
+
+# --------------------------------------------------
+# USER - VIEW OWN BLOOD REQUESTS
+# --------------------------------------------------
+
+@app.route("/my-blood-requests")
+def my_blood_requests():
+    check = role_required("user")
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT *
+            FROM blood_requests
+            WHERE user_id = %s
+            ORDER BY created_at DESC
+        """, (session["user_id"],))
+
+        requests_list = cursor.fetchall()
+
+        return render_template(
+            "my_blood_requests.html",
+            requests_list=requests_list
+        )
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# DONOR - VIEW SMART MATCHING BLOOD REQUESTS
+# --------------------------------------------------
+
+@app.route("/donor/blood-requests")
+def donor_blood_requests():
+    check = role_required("donor")
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT donor_id, blood_group, city, available
+            FROM donors
+            WHERE user_id = %s
+        """, (session["user_id"],))
+
+        donor = cursor.fetchone()
+
+        if donor is None:
+            return "Donor profile not found. Please contact the administrator."
+
+        if donor["available"]:
+            cursor.execute("""
+                SELECT
+                    br.request_id, br.patient_name, br.blood_group,
+                    br.units_required, br.hospital_name, br.city,
+                    br.urgency, br.required_date, br.status,
+                    br.created_at, br.accepted_donor_id,
+                    CASE
+                        WHEN br.accepted_donor_id = %s THEN 1
+                        ELSE 0
+                    END AS accepted_by_me
+                FROM blood_requests br
+                WHERE br.blood_group = %s
+                  AND LOWER(TRIM(br.city)) = LOWER(TRIM(%s))
+                  AND (
+                        br.status = 'Pending'
+                        OR br.accepted_donor_id = %s
+                  )
+                ORDER BY
+                    CASE br.urgency
+                        WHEN 'Critical' THEN 1
+                        WHEN 'Urgent' THEN 2
+                        ELSE 3
+                    END,
+                    br.created_at DESC
+            """, (
+                donor["donor_id"],
+                donor["blood_group"],
+                donor["city"],
+                donor["donor_id"]
+            ))
+        else:
+            # An unavailable donor can still see requests already accepted by them.
+            cursor.execute("""
+                SELECT
+                    br.request_id, br.patient_name, br.blood_group,
+                    br.units_required, br.hospital_name, br.city,
+                    br.urgency, br.required_date, br.status,
+                    br.created_at, br.accepted_donor_id,
+                    1 AS accepted_by_me
+                FROM blood_requests br
+                WHERE br.accepted_donor_id = %s
+                ORDER BY br.created_at DESC
+            """, (donor["donor_id"],))
+
+        requests_list = cursor.fetchall()
+
+        return render_template(
+            "donor_blood_requests.html",
+            requests_list=requests_list,
+            donor=donor
+        )
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# DONOR - ACCEPT BLOOD REQUEST
+# --------------------------------------------------
+
+@app.route("/donor/accept-request/<int:request_id>", methods=["POST"])
+def donor_accept_request(request_id):
+    check = role_required("donor")
+    if check:
+        flash("Only donors can accept blood requests.", "error")
+        return redirect(url_for("login"))
+
+    connection = get_connection()
+    if connection is None:
+        flash("Database connection failed.", "error")
+        return redirect(url_for("donor_blood_requests"))
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT donor_id, blood_group, city, available
+            FROM donors
+            WHERE user_id = %s
+        """, (session["user_id"],))
+
+        donor = cursor.fetchone()
+
+        if donor is None:
+            flash("Your donor profile was not found.", "error")
+            return redirect(url_for("dashboard"))
+
+        if not donor["available"]:
+            flash("You are currently unavailable for donation.", "error")
+            return redirect(url_for("donor_blood_requests"))
+
+        # Match blood group, city, availability and pending status.
+        cursor.execute("""
+            UPDATE blood_requests
+            SET
+                accepted_donor_id = %s,
+                accepted_at = CURRENT_TIMESTAMP,
+                status = 'Matched'
+            WHERE request_id = %s
+              AND blood_group = %s
+              AND LOWER(TRIM(city)) = LOWER(TRIM(%s))
+              AND status = 'Pending'
+              AND accepted_donor_id IS NULL
+        """, (
+            donor["donor_id"],
+            request_id,
+            donor["blood_group"],
+            donor["city"]
+        ))
+
+        if cursor.rowcount == 1:
+            # BATCH 3: FIND THE USER WHO CREATED THE REQUEST
+            cursor.execute("""
+                SELECT user_id, patient_name
+                FROM blood_requests
+                WHERE request_id = %s
+            """, (request_id,))
+
+            request_record = cursor.fetchone()
+
+            # BATCH 3: NOTIFY THAT USER
+            if request_record:
+                message = (
+                    f"Good news! Donor {session.get('user_name')} "
+                    f"has accepted your blood request "
+                    f"(Request ID: {request_id}) for "
+                    f"{request_record['patient_name']}."
+                )
+
+                create_notification(
+                    cursor,
+                    request_record["user_id"],
+                    message
+                )
+
+            connection.commit()
+            flash("Blood request accepted successfully!", "success")
+
+        else:
+            connection.rollback()
+            flash(
+                "This request is no longer available. It may already have been accepted or may not match your city and blood group.",
+                "error"
+            )
+
+        return redirect(url_for("donor_blood_requests"))
+
+    except Exception as error:
+        connection.rollback()
+        flash("Unable to accept request: " + str(error), "error")
+        return redirect(url_for("donor_blood_requests"))
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# BATCH 2 - DONOR PROFILE
+# --------------------------------------------------
+
+@app.route("/donor/profile", methods=["GET", "POST"])
+def donor_profile():
+    check = role_required("donor")
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        if request.method == "POST":
+            full_name = request.form.get("full_name", "").strip()
+            email = request.form.get("email", "").strip()
+            phone = request.form.get("phone", "").strip()
+            blood_group = request.form.get("blood_group")
+            city = request.form.get("city", "").strip()
+            address = request.form.get("address", "").strip()
+
+            if not all([full_name, email, phone, city, address]):
+                flash("Please fill in all profile fields.", "error")
+            elif blood_group not in BLOOD_GROUPS:
+                flash("Please select a valid blood group.", "error")
+            else:
+                cursor.execute("""
+                    SELECT user_id
+                    FROM users
+                    WHERE email = %s AND user_id != %s
+                """, (email, session["user_id"]))
+
+                existing_email = cursor.fetchone()
+
+                if existing_email:
+                    flash("This email address is already used by another account.", "error")
+                else:
+                    cursor.execute("""
+                        UPDATE users
+                        SET full_name = %s, email = %s, phone = %s
+                        WHERE user_id = %s
+                    """, (
+                        full_name, email, phone, session["user_id"]
+                    ))
+
+                    cursor.execute("""
+                        UPDATE donors
+                        SET blood_group = %s, city = %s, address = %s
+                        WHERE user_id = %s
+                    """, (
+                        blood_group, city, address, session["user_id"]
+                    ))
+
+                    connection.commit()
+                    session["user_name"] = full_name
+                    flash("Donor profile updated successfully.", "success")
+
+            return redirect(url_for("donor_profile"))
+
+        cursor.execute("""
+            SELECT
+                u.full_name, u.email, u.phone,
+                d.donor_id, d.blood_group, d.city,
+                d.address, d.available, d.last_donation_date
+            FROM users u
+            INNER JOIN donors d ON u.user_id = d.user_id
+            WHERE u.user_id = %s
+        """, (session["user_id"],))
+
+        donor = cursor.fetchone()
+
+        if donor is None:
+            return "Donor profile not found."
+
+        return render_template(
+            "donor_profile.html",
+            donor=donor,
+            blood_groups=BLOOD_GROUPS
+        )
+
+    except Exception as error:
+        connection.rollback()
+        return "Profile Error: " + str(error)
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# BATCH 2 - DONOR AVAILABILITY
+# --------------------------------------------------
+
+@app.route("/donor/availability", methods=["GET", "POST"])
+def donor_availability():
+    check = role_required("donor")
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        if request.method == "POST":
+            new_status = request.form.get("available")
+
+            if new_status not in ["0", "1"]:
+                flash("Invalid availability selection.", "error")
+            else:
+                cursor.execute("""
+                    UPDATE donors
+                    SET available = %s
+                    WHERE user_id = %s
+                """, (int(new_status), session["user_id"]))
+
+                connection.commit()
+                flash("Availability updated successfully.", "success")
+
+            return redirect(url_for("donor_availability"))
+
+        cursor.execute("""
+            SELECT available
+            FROM donors
+            WHERE user_id = %s
+        """, (session["user_id"],))
+
+        donor = cursor.fetchone()
+
+        if donor is None:
+            return "Donor profile not found."
+
+        return render_template("donor_availability.html", donor=donor)
+
+    except Exception as error:
+        connection.rollback()
+        return "Availability Error: " + str(error)
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# BATCH 2 - DONOR ACCEPTED REQUEST HISTORY
+# --------------------------------------------------
+
+@app.route("/donor/accepted-requests")
+def donor_accepted_requests():
+    check = role_required("donor")
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT
+                br.request_id, br.patient_name, br.blood_group,
+                br.units_required, br.hospital_name, br.city,
+                br.urgency, br.required_date, br.status, br.accepted_at
+            FROM blood_requests br
+            INNER JOIN donors d ON br.accepted_donor_id = d.donor_id
+            WHERE d.user_id = %s
+            ORDER BY br.accepted_at DESC
+        """, (session["user_id"],))
+
+        requests_list = cursor.fetchall()
+
+        return render_template(
+            "donor_accepted_requests.html",
+            requests_list=requests_list
+        )
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# BATCH 2 - DONOR DONATION HISTORY
+# --------------------------------------------------
+
+@app.route("/donor/donation-history")
+def donor_donation_history():
+    check = role_required("donor")
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT
+                dh.donation_id, dh.request_id, dh.donation_date,
+                dh.hospital_name, dh.units_donated, dh.notes,
+                br.patient_name, br.blood_group
+            FROM donation_history dh
+            INNER JOIN donors d ON dh.donor_id = d.donor_id
+            LEFT JOIN blood_requests br ON dh.request_id = br.request_id
+            WHERE d.user_id = %s
+            ORDER BY dh.donation_date DESC, dh.donation_id DESC
+        """, (session["user_id"],))
+
+        donations = cursor.fetchall()
+
+        return render_template(
+            "donor_donation_history.html",
+            donations=donations
+        )
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# BATCH 2 - ADMIN VIEW AND RECORD DONATIONS
+# --------------------------------------------------
+
+@app.route("/admin/donations")
+def admin_donations():
+    check = role_required("admin")
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT
+                br.request_id, br.patient_name, br.blood_group,
+                br.units_required, br.hospital_name, br.city,
+                br.required_date, br.status, br.accepted_at,
+                d.donor_id, d.blood_group AS donor_blood_group,
+                u.full_name AS donor_name, u.phone AS donor_phone
+            FROM blood_requests br
+            INNER JOIN donors d ON br.accepted_donor_id = d.donor_id
+            INNER JOIN users u ON d.user_id = u.user_id
+            WHERE br.status = 'Matched'
+              AND NOT EXISTS (
+                    SELECT 1
+                    FROM donation_history dh
+                    WHERE dh.request_id = br.request_id
+              )
+            ORDER BY br.accepted_at DESC
+        """)
+
+        matched_requests = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT
+                dh.donation_id, dh.request_id, dh.donation_date,
+                dh.hospital_name, dh.units_donated,
+                u.full_name AS donor_name, br.patient_name
+            FROM donation_history dh
+            INNER JOIN donors d ON dh.donor_id = d.donor_id
+            INNER JOIN users u ON d.user_id = u.user_id
+            LEFT JOIN blood_requests br ON dh.request_id = br.request_id
+            ORDER BY dh.created_at DESC
+        """)
+
+        donations = cursor.fetchall()
+
+        return render_template(
+            "admin_donations.html",
+            matched_requests=matched_requests,
+            donations=donations
+        )
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+@app.route("/admin/record-donation/<int:request_id>", methods=["POST"])
+def admin_record_donation(request_id):
+    check = role_required("admin")
+    if check:
+        return check
+
+    donation_date = request.form.get("donation_date")
+    units_donated = request.form.get("units_donated")
+    notes = request.form.get("notes", "").strip()
+
+    try:
+        donation_date = date.fromisoformat(donation_date)
+        units_donated = int(units_donated)
+
+        if units_donated < 1:
+            raise ValueError
+
+    except (ValueError, TypeError):
+        flash("Enter a valid donation date and units donated.", "error")
+        return redirect(url_for("admin_donations"))
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT
+                br.request_id, br.hospital_name, br.status,
+                br.accepted_donor_id, d.donor_id
+            FROM blood_requests br
+            INNER JOIN donors d ON br.accepted_donor_id = d.donor_id
+            WHERE br.request_id = %s
+            FOR UPDATE
+        """, (request_id,))
+
+        blood_request_record = cursor.fetchone()
+
+        if (
+            blood_request_record is None
+            or blood_request_record["status"] != "Matched"
+            or blood_request_record["accepted_donor_id"] is None
+        ):
+            connection.rollback()
+            flash("This request is not available for donation confirmation.", "error")
+            return redirect(url_for("admin_donations"))
+
+        cursor.execute("""
+            INSERT INTO donation_history
+            (
+                donor_id, request_id, donation_date,
+                hospital_name, units_donated, notes
+            )
+            VALUES (%s, %s, %s, %s, %s, %s)
+        """, (
+            blood_request_record["donor_id"],
+            request_id,
+            donation_date,
+            blood_request_record["hospital_name"],
+            units_donated,
+            notes or None
+        ))
+
+        cursor.execute("""
+            UPDATE blood_requests
+            SET status = 'Completed'
+            WHERE request_id = %s AND status = 'Matched'
+        """, (request_id,))
+
+        if cursor.rowcount != 1:
+            raise Exception("The request status could not be updated.")
+
+        cursor.execute("""
+            UPDATE donors
+            SET last_donation_date = %s
+            WHERE donor_id = %s
+        """, (donation_date, blood_request_record["donor_id"]))
+
+        connection.commit()
+        flash("Donation recorded and blood request marked Completed.", "success")
+
+    except Exception as error:
+        connection.rollback()
+        flash("Unable to record donation: " + str(error), "error")
+
+    finally:
+        cursor.close()
+        connection.close()
+
+    return redirect(url_for("admin_donations"))
+
+
+# --------------------------------------------------
+# ADMIN - VIEW ALL BLOOD REQUESTS
+# --------------------------------------------------
+
+@app.route("/admin/blood-requests")
+def admin_blood_requests():
+    check = role_required("admin")
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT
+                br.*,
+                u.full_name AS requester_name,
+                u.email AS requester_email,
+                u.phone AS requester_phone
+            FROM blood_requests br
+            INNER JOIN users u ON br.user_id = u.user_id
+            ORDER BY br.created_at DESC
+        """)
+
+        requests_list = cursor.fetchall()
+
+        return render_template(
+            "admin_blood_requests.html",
+            requests_list=requests_list
+        )
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# ADMIN - UPDATE BLOOD REQUEST STATUS
+# --------------------------------------------------
+
+@app.route("/admin/update-blood-request/<int:request_id>", methods=["POST"])
+def update_blood_request_status(request_id):
+    check = role_required("admin")
+    if check:
+        return check
+
+    new_status = request.form.get("status")
+    allowed_statuses = ["Pending", "Matched", "Completed", "Cancelled"]
+
+    if new_status not in allowed_statuses:
+        return "Invalid request status."
+
+    if new_status == "Completed":
+        flash(
+            "Use Admin Donations to confirm a real donation and complete this request.",
+            "error"
+        )
+        return redirect(url_for("admin_donations"))
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor()
+
+    try:
+        if new_status == "Pending":
+            cursor.execute("""
+                UPDATE blood_requests
+                SET
+                    status = %s,
+                    accepted_donor_id = NULL,
+                    accepted_at = NULL
+                WHERE request_id = %s
+            """, (new_status, request_id))
+        else:
+            cursor.execute("""
+                UPDATE blood_requests
+                SET status = %s
+                WHERE request_id = %s
+            """, (new_status, request_id))
+
+        connection.commit()
+        flash("Blood request status updated.", "success")
+        return redirect(url_for("admin_blood_requests"))
+
+    except Exception as error:
+        connection.rollback()
+        return "Status Update Error: " + str(error)
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# BATCH 3 - USER/DONOR NOTIFICATION HISTORY
+# --------------------------------------------------
+
+@app.route("/notifications")
+def notifications():
+    check = login_required()
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT notification_id, message, is_read, created_at
+            FROM notifications
+            WHERE user_id = %s
+            ORDER BY created_at DESC, notification_id DESC
+        """, (session["user_id"],))
+
+        notifications_list = cursor.fetchall()
+
+        unread_count = sum(
+            1 for item in notifications_list if not item["is_read"]
+        )
+
+        return render_template(
+            "notifications.html",
+            notifications=notifications_list,
+            unread_count=unread_count
+        )
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# BATCH 3 - MARK ONE NOTIFICATION AS READ
+# --------------------------------------------------
+
+@app.route("/notifications/mark-read/<int:notification_id>", methods=["POST"])
+def mark_notification_read(notification_id):
+    check = login_required()
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute("""
+            UPDATE notifications
+            SET is_read = 1
+            WHERE notification_id = %s
+              AND user_id = %s
+        """, (notification_id, session["user_id"]))
+
+        connection.commit()
+        flash("Notification marked as read.", "success")
+
+    except Exception as error:
+        connection.rollback()
+        flash("Unable to update notification: " + str(error), "error")
+
+    finally:
+        cursor.close()
+        connection.close()
+
+    return redirect(url_for("notifications"))
+
+
+# --------------------------------------------------
+# BATCH 3 - MARK ALL NOTIFICATIONS AS READ
+# --------------------------------------------------
+
+@app.route("/notifications/mark-all-read", methods=["POST"])
+def mark_all_notifications_read():
+    check = login_required()
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor()
+
+    try:
+        cursor.execute("""
+            UPDATE notifications
+            SET is_read = 1
+            WHERE user_id = %s AND is_read = 0
+        """, (session["user_id"],))
+
+        connection.commit()
+        flash("All notifications marked as read.", "success")
+
+    except Exception as error:
+        connection.rollback()
+        flash("Unable to update notifications: " + str(error), "error")
+
+    finally:
+        cursor.close()
+        connection.close()
+
+    return redirect(url_for("notifications"))
+
+
+# --------------------------------------------------
+# BATCH 3 - ADMIN NOTIFICATION HISTORY
+# --------------------------------------------------
+
+@app.route("/admin/notifications")
+def admin_notifications():
+    check = role_required("admin")
+    if check:
+        return check
+
+    connection = get_connection()
+    if connection is None:
+        return "Database Connection Failed!"
+
+    cursor = connection.cursor(dictionary=True)
+
+    try:
+        cursor.execute("""
+            SELECT
+                n.notification_id,
+                n.user_id,
+                u.full_name,
+                u.email,
+                u.role,
+                n.message,
+                n.is_read,
+                n.created_at
+            FROM notifications n
+            INNER JOIN users u ON n.user_id = u.user_id
+            ORDER BY n.created_at DESC, n.notification_id DESC
+        """)
+
+        notifications_list = cursor.fetchall()
+
+        cursor.execute("""
+            SELECT
+                COUNT(*) AS total_notifications,
+                COALESCE(SUM(is_read = 0), 0) AS unread_notifications,
+                COALESCE(SUM(is_read = 1), 0) AS read_notifications
+            FROM notifications
+        """)
+
+        counts = cursor.fetchone()
+
+        return render_template(
+            "admin_notifications.html",
+            notifications=notifications_list,
+            counts=counts
+        )
+
+    finally:
+        cursor.close()
+        connection.close()
+
+
+# --------------------------------------------------
+# LOGOUT
+# --------------------------------------------------
+
+@app.route("/logout")
+def logout():
+    session.clear()
+    return redirect(url_for("login"))
+
+
+if __name__ == "__main__":
+    app.run(debug=True)

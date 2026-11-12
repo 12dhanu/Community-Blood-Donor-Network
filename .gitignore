@@ -1,0 +1,33 @@
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Virtual environments
+venv/
+.venv/
+env/
+
+# Secret configuration
+.env
+.env.*
+
+# Database backups
+*.sql
+*.sql.gz
+
+# Local logs
+*.log
+
+# Editor settings
+.vscode/
+
+# Local application backups
+app_backup.py
+app_before_volunteer_update.py
+
+# Local database test script
+test_db.py
+
+# ZIP backup files
+*.zip

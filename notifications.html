@@ -1,0 +1,138 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Notifications</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            margin: 0;
+            padding: 30px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: auto;
+        }
+
+        h1 {
+            color: #b30000;
+        }
+
+        .notification {
+            background: white;
+            padding: 18px;
+            margin: 15px 0;
+            border-radius: 8px;
+            border-left: 5px solid #999;
+            box-shadow: 0 2px 5px #ddd;
+        }
+
+        .unread {
+            border-left-color: #d00000;
+            background: #fff4f4;
+        }
+
+        .message {
+            font-size: 16px;
+            margin-bottom: 10px;
+        }
+
+        .date {
+            color: #666;
+            font-size: 13px;
+        }
+
+        button {
+            background: #b30000;
+            color: white;
+            border: none;
+            padding: 9px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .top-link {
+            display: inline-block;
+            margin: 10px 10px 20px 0;
+            color: #b30000;
+        }
+
+        .empty {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="container">
+
+    <h1>My Notifications</h1>
+
+    <p>
+        Total unread notifications:
+        <strong>{{ unread_count }}</strong>
+    </p>
+
+    <a class="top-link" href="{{ url_for('dashboard') }}">
+        Back to Dashboard
+    </a>
+
+    {% if notifications %}
+        <form method="POST"
+              action="{{ url_for('mark_all_notifications_read') }}">
+            <button type="submit">Mark All as Read</button>
+        </form>
+
+        {% for item in notifications %}
+
+            <div class="notification {% if not item.is_read %}unread{% endif %}">
+
+                <div class="message">
+                    {{ item.message }}
+                </div>
+
+                <div class="date">
+                    {{ item.created_at }}
+                </div>
+
+                <p>
+                    {% if item.is_read %}
+                        <strong>Read</strong>
+                    {% else %}
+                        <strong>Unread</strong>
+
+                        <form method="POST"
+                              action="{{ url_for('mark_notification_read',
+                                                notification_id=item.notification_id) }}">
+
+                            <button type="submit">
+                                Mark as Read
+                            </button>
+
+                        </form>
+                    {% endif %}
+                </p>
+
+            </div>
+
+        {% endfor %}
+
+    {% else %}
+
+        <div class="empty">
+            <h3>No notifications yet.</h3>
+            <p>New notifications will appear here.</p>
+        </div>
+
+    {% endif %}
+
+</div>
+</body>
+</html>

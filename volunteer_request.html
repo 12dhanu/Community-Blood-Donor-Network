@@ -1,0 +1,178 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Request Emergency Volunteers</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            background: #f4f6f9;
+            color: #333;
+        }
+
+        header {
+            background: #b71c1c;
+            color: white;
+            padding: 20px 35px;
+        }
+
+        header a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 700px;
+            margin: 35px auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 3px 12px rgba(0,0,0,.08);
+        }
+
+        h1 {
+            color: #b71c1c;
+            margin-top: 0;
+        }
+
+        p {
+            line-height: 1.6;
+            color: #666;
+        }
+
+        label {
+            display: block;
+            margin: 18px 0 7px;
+            font-weight: bold;
+        }
+
+        input, textarea, select {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+            font-size: 15px;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        button {
+            margin-top: 22px;
+            background: #b71c1c;
+            color: white;
+            border: 0;
+            padding: 12px 22px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover {
+            background: #880e0e;
+        }
+
+        .back {
+            display: inline-block;
+            margin-left: 12px;
+            color: #b71c1c;
+            text-decoration: none;
+        }
+
+        .message {
+            padding: 11px;
+            margin: 10px 0;
+            border-radius: 6px;
+            background: #fff3cd;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <a href="{{ url_for('dashboard') }}">
+            ← Back to Dashboard
+        </a>
+    </header>
+
+    <main class="container">
+
+        <h1>Request Emergency Volunteers</h1>
+
+        <p>
+            Describe the help you need.
+            Available volunteers will receive a notification
+            about your request.
+        </p>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <div class="message">{{ message }}</div>
+            {% endfor %}
+        {% endwith %}
+
+        <form method="POST"
+              action="{{ url_for('submit_volunteer_request') }}">
+
+            <label for="emergency_type">
+                Type of Emergency
+            </label>
+
+            <input
+                type="text"
+                id="emergency_type"
+                name="emergency_type"
+                placeholder="Example: Accident assistance, patient transport"
+                required
+            >
+
+            <label for="description">
+                Describe the Help Needed
+            </label>
+
+            <textarea
+                id="description"
+                name="description"
+                placeholder="Explain what assistance is required..."
+                required
+            ></textarea>
+
+            <label for="location">
+                Emergency Location
+            </label>
+
+            <input
+                type="text"
+                id="location"
+                name="location"
+                placeholder="Enter area, city and nearby landmark"
+                required
+            >
+
+            <button type="submit">
+                Submit Volunteer Request
+            </button>
+
+            <a class="back"
+               href="{{ url_for('my_volunteer_requests') }}">
+                My Requests
+            </a>
+
+        </form>
+
+    </main>
+
+</body>
+</html>

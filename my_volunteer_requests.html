@@ -1,0 +1,195 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Volunteer Requests</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            background: #f4f6f9;
+            color: #333;
+        }
+
+        header {
+            background: #b71c1c;
+            color: white;
+            padding: 20px 35px;
+        }
+
+        header a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 30px auto;
+            padding: 0 20px;
+        }
+
+        h1 {
+            color: #b71c1c;
+        }
+
+        .request {
+            background: white;
+            padding: 22px;
+            margin: 18px 0;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(0,0,0,.07);
+        }
+
+        .request h3 {
+            color: #b71c1c;
+            margin-top: 0;
+        }
+
+        .detail {
+            margin: 9px 0;
+            line-height: 1.5;
+            overflow-wrap: anywhere;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 6px 11px;
+            border-radius: 20px;
+            background: #eee;
+            font-weight: bold;
+        }
+
+        .empty {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+        }
+
+        .actions a {
+            display: inline-block;
+            margin: 12px 10px 0 0;
+            padding: 10px 16px;
+            background: #b71c1c;
+            color: white;
+            text-decoration: none;
+            border-radius: 6px;
+        }
+
+        @media(max-width: 600px) {
+            header {
+                padding: 18px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <a href="{{ url_for('dashboard') }}">
+            ← Back to Dashboard
+        </a>
+    </header>
+
+    <main class="container">
+
+        <h1>My Emergency Volunteer Requests</h1>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% for category, message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        {% endwith %}
+
+        {% if requests_list %}
+
+            {% for item in requests_list %}
+
+                <section class="request">
+
+                    <h3>
+                        Request #{{ item.emergency_id }}
+                        — {{ item.emergency_type }}
+                    </h3>
+
+                    <p class="detail">
+                        <strong>Description:</strong>
+                        {{ item.description }}
+                    </p>
+
+                    <p class="detail">
+                        <strong>Location:</strong>
+                        {{ item.location }}
+                    </p>
+
+                    <p class="detail">
+                        <strong>Submitted:</strong>
+                        {{ item.created_at }}
+                    </p>
+
+                    <p class="detail">
+                        <strong>Status:</strong>
+                        <span class="status">
+                            {{ item.status }}
+                        </span>
+                    </p>
+
+                    {% if item.volunteer_name %}
+
+                        <p class="detail">
+                            <strong>Assigned Volunteer:</strong>
+                            {{ item.volunteer_name }}
+                        </p>
+
+                        <p class="detail">
+                            <strong>Volunteer Phone:</strong>
+                            {{ item.volunteer_phone }}
+                        </p>
+
+                    {% elif item.status == "Pending" %}
+
+                        <p class="detail">
+                            No volunteer has accepted this request yet.
+                        </p>
+
+                    {% endif %}
+
+                </section>
+
+            {% endfor %}
+
+        {% else %}
+
+            <div class="empty">
+                <p>
+                    You have not submitted any emergency
+                    volunteer requests yet.
+                </p>
+            </div>
+
+        {% endif %}
+
+        <div class="actions">
+
+            <a href="{{ url_for('submit_volunteer_request') }}">
+                Submit a New Request
+            </a>
+
+            <a href="{{ url_for('dashboard') }}">
+                Dashboard
+            </a>
+
+        </div>
+
+    </main>
+
+</body>
+</html>

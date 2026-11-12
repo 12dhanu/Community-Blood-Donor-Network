@@ -1,0 +1,202 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Account | Blood Donor Network</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            text-align: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            width: 350px;
+            max-width: 90%;
+            margin: 30px auto;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 3px 12px rgba(0,0,0,0.1);
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 11px;
+            margin: 8px 0;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: #c62828;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        button:hover {
+            background: #8e0000;
+        }
+
+        .details-section {
+            display: none;
+            margin-top: 15px;
+            padding: 12px;
+            background: #f9f9f9;
+            border-radius: 6px;
+            text-align: left;
+        }
+
+        .details-section h3 {
+            text-align: center;
+        }
+
+        .details-section input,
+        .details-section select {
+            margin-bottom: 10px;
+        }
+
+        a {
+            color: #c62828;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h2>🩸 Create Account</h2>
+
+    <p>Community Blood Donor and Emergency Volunteer Network</p>
+
+    <form method="POST" action="{{ url_for('register') }}">
+
+        <input type="text" name="name"
+               placeholder="Full Name" required>
+
+        <input type="email" name="email"
+               placeholder="Email" required>
+
+        <input type="text" name="phone"
+               placeholder="Phone Number" required>
+
+        <input type="password" name="password"
+               placeholder="Password" required>
+
+        <input type="password" name="confirm_password"
+               placeholder="Confirm Password" required>
+
+        <select name="role" id="role" required>
+            <option value="">Choose Your Role</option>
+            <option value="user">Normal User</option>
+            <option value="donor">Blood Donor</option>
+            <option value="volunteer">Volunteer</option>
+        </select>
+
+        <!-- DONOR DETAILS -->
+
+        <div id="donorDetails" class="details-section">
+
+            <h3>🩸 Donor Details</h3>
+
+            <select name="blood_group" id="bloodGroup">
+                <option value="">Select Blood Group</option>
+                <option value="A+">A+</option>
+                <option value="A-">A-</option>
+                <option value="B+">B+</option>
+                <option value="B-">B-</option>
+                <option value="AB+">AB+</option>
+                <option value="AB-">AB-</option>
+                <option value="O+">O+</option>
+                <option value="O-">O-</option>
+            </select>
+
+            <input type="text" name="city" id="donorCity"
+                   placeholder="City">
+
+            <input type="text" name="address" id="address"
+                   placeholder="Full Address">
+
+        </div>
+
+        <!-- VOLUNTEER DETAILS -->
+
+        <div id="volunteerDetails" class="details-section">
+
+            <h3>🤝 Volunteer Details</h3>
+
+            <input type="text" name="skills" id="skills"
+                   placeholder="Your Skills (e.g. First Aid, Transport)">
+
+            <input type="text" name="volunteer_city" id="volunteerCity"
+                   placeholder="Your City">
+
+        </div>
+
+        <button type="submit">Register</button>
+
+    </form>
+
+    <p>
+        Already registered?
+        <a href="{{ url_for('login') }}">Login here</a>
+    </p>
+
+</div>
+
+<script>
+    const role = document.getElementById("role");
+
+    const donorDetails = document.getElementById("donorDetails");
+    const volunteerDetails = document.getElementById("volunteerDetails");
+
+    const bloodGroup = document.getElementById("bloodGroup");
+    const donorCity = document.getElementById("donorCity");
+    const address = document.getElementById("address");
+
+    const skills = document.getElementById("skills");
+    const volunteerCity = document.getElementById("volunteerCity");
+
+    function toggleRoleFields() {
+
+        // Hide both sections first
+        donorDetails.style.display = "none";
+        volunteerDetails.style.display = "none";
+
+        // Remove required validation first
+        bloodGroup.required = false;
+        donorCity.required = false;
+        address.required = false;
+        volunteerCity.required = false;
+
+        if (role.value === "donor") {
+
+            donorDetails.style.display = "block";
+
+            bloodGroup.required = true;
+            donorCity.required = true;
+            address.required = true;
+
+        } else if (role.value === "volunteer") {
+
+            volunteerDetails.style.display = "block";
+
+            volunteerCity.required = true;
+        }
+    }
+
+    role.addEventListener("change", toggleRoleFields);
+
+    toggleRoleFields();
+</script>
+
+</body>
+</html>

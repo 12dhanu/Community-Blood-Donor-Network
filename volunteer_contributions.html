@@ -1,0 +1,77 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Volunteer Contributions</title>
+    <style>
+        * { box-sizing: border-box; font-family: Arial, sans-serif; }
+        body { margin: 0; background: #f4f6f9; color: #333; }
+        header {
+            background: #6a1b9a; color: white; padding: 18px 5%;
+            display: flex; justify-content: space-between;
+            align-items: center; flex-wrap: wrap;
+        }
+        header a { color: white; text-decoration: none; margin: 5px 10px; }
+        .logout {
+            background: white; color: #6a1b9a !important;
+            padding: 9px 14px; border-radius: 5px; font-weight: bold;
+        }
+        .container { max-width: 1050px; margin: 30px auto; padding: 0 18px; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+        .card {
+            background: white; padding: 25px; border-radius: 9px;
+            box-shadow: 0 2px 9px #0001; text-align: center;
+        }
+        .card h2 { color: #6a1b9a; font-size: 35px; }
+        .muted { color: #666; line-height: 1.5; }
+    </style>
+</head>
+<body>
+
+<header>
+    <strong>🤝 My Contributions</strong>
+    <nav>
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('notifications') }}">Notifications</a>
+        <a class="logout" href="{{ url_for('logout') }}">Logout</a>
+    </nav>
+</header>
+
+<main class="container">
+
+    <p><a href="{{ url_for('dashboard') }}">← Back to Dashboard</a></p>
+
+    <h1>My Volunteer Contributions</h1>
+
+    <div class="grid">
+
+        <section class="card">
+            <h2>{{ contributions.total_tasks or 0 }}</h2>
+            <p>Total Assigned Tasks</p>
+        </section>
+
+        <section class="card">
+            <h2>{{ contributions.active_tasks or 0 }}</h2>
+            <p>Active Tasks</p>
+        </section>
+
+        <section class="card">
+            <h2>{{ contributions.completed_tasks or 0 }}</h2>
+            <p>Completed Tasks</p>
+        </section>
+
+    </div>
+
+    <p class="muted">
+        Thank you for contributing your time to help the community.
+    </p>
+
+</main>
+</body>
+</html>

@@ -1,0 +1,61 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Donor Profile</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f6f9; padding: 20px; }
+        .container { max-width: 650px; margin: 25px auto; background: white; padding: 25px; border-radius: 10px; }
+        h1 { color: #c0392b; text-align: center; }
+        label { display: block; margin-top: 14px; font-weight: bold; }
+        input, select { width: 100%; padding: 11px; margin-top: 6px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; }
+        button, .back { display: inline-block; margin-top: 20px; padding: 11px 18px; background: #c0392b; color: white; border: none; border-radius: 5px; text-decoration: none; cursor: pointer; }
+        .message { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #e8f5e9; color: #1b5e20; }
+        .error { background: #ffebee; color: #b71c1c; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>My Donor Profile</h1>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="message {{ category }}">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <form method="POST">
+        <label>Full Name</label>
+        <input type="text" name="full_name" value="{{ donor.full_name }}" required>
+
+        <label>Email</label>
+        <input type="email" name="email" value="{{ donor.email }}" required>
+
+        <label>Phone</label>
+        <input type="text" name="phone" value="{{ donor.phone }}" required>
+
+        <label>Blood Group</label>
+        <select name="blood_group" required>
+            {% for group in blood_groups %}
+                <option value="{{ group }}" {% if donor.blood_group == group %}selected{% endif %}>
+                    {{ group }}
+                </option>
+            {% endfor %}
+        </select>
+
+        <label>City</label>
+        <input type="text" name="city" value="{{ donor.city }}" required>
+
+        <label>Address</label>
+        <input type="text" name="address" value="{{ donor.address }}" required>
+
+        <button type="submit">Save Profile</button>
+    </form>
+
+    <a class="back" href="{{ url_for('dashboard') }}">Back to Dashboard</a>
+</div>
+</body>
+</html>

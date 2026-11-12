@@ -1,0 +1,212 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer Dashboard</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+
+        body {
+            margin: 0;
+            background: #f4f6f9;
+            color: #333;
+        }
+
+        header {
+            background: #6a1b9a;
+            color: white;
+            padding: 18px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .nav a {
+            color: white;
+            margin: 5px 10px;
+            text-decoration: none;
+        }
+
+        .logout {
+            background: white;
+            color: #6a1b9a !important;
+            padding: 9px 14px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .container {
+            max-width: 1050px;
+            margin: 30px auto;
+            padding: 0 18px;
+        }
+
+        .card {
+            background: white;
+            padding: 22px;
+            border-radius: 9px;
+            box-shadow: 0 2px 9px #0001;
+            margin-bottom: 18px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+        }
+
+        .btn {
+            display: inline-block;
+            background: #6a1b9a;
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            text-decoration: none;
+        }
+
+        .btn:hover {
+            background: #4a116d;
+        }
+
+        .flash {
+            padding: 12px;
+            background: #f3e5f5;
+            border-left: 4px solid #6a1b9a;
+            margin: 12px 0;
+        }
+
+        .muted {
+            color: #666;
+            line-height: 1.5;
+        }
+
+        @media(max-width: 650px) {
+            .container {
+                margin: 18px auto;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<header>
+
+    <strong>🤝 Blood Donor Network — Volunteer</strong>
+
+    <nav class="nav">
+        <a href="{{ url_for('dashboard') }}">Dashboard</a>
+
+        <a href="{{ url_for('notifications') }}">
+            Notifications ({{ unread_notification_count }})
+        </a>
+
+        <a class="logout" href="{{ url_for('logout') }}">
+            Logout
+        </a>
+    </nav>
+
+</header>
+
+<main class="container">
+
+    <p>
+        <a href="{{ url_for('dashboard') }}">← Back to Dashboard</a>
+    </p>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% for category, message in messages %}
+            <div class="flash">{{ message }}</div>
+        {% endfor %}
+    {% endwith %}
+
+    <h1>
+        Welcome, {{ session.get('user_name', 'Volunteer') }}!
+    </h1>
+
+    <p class="muted">
+        Thank you for supporting people during emergencies.
+        Choose an activity below to get started.
+    </p>
+
+    <div class="grid">
+
+        <section class="card">
+            <h2>👤 My Profile</h2>
+
+            <p>
+                View and update your contact details,
+                skills and city.
+            </p>
+
+            <a class="btn" href="{{ url_for('volunteer_profile') }}">
+                My Profile
+            </a>
+        </section>
+
+        <section class="card">
+            <h2>🚨 Emergency Activities</h2>
+
+            <p>
+                View pending emergency requests and
+                accept activities you can help with.
+            </p>
+
+            <a class="btn" href="{{ url_for('volunteer_emergency_activities') }}">
+                View Activities
+            </a>
+        </section>
+
+        <section class="card">
+            <h2>📋 My Assigned Tasks</h2>
+
+            <p>
+                View your assigned emergency tasks
+                and mark completed tasks.
+            </p>
+
+            <a class="btn" href="{{ url_for('volunteer_tasks') }}">
+                View Tasks
+            </a>
+        </section>
+
+        <section class="card">
+            <h2>🏅 My Contributions</h2>
+
+            <p>
+                View your total, active and completed
+                volunteer activities.
+            </p>
+
+            <a class="btn" href="{{ url_for('volunteer_contributions') }}">
+                View Contributions
+            </a>
+        </section>
+
+        <section class="card">
+            <h2>🔔 Notifications</h2>
+
+            <p>
+                Read updates about emergency requests
+                and volunteer assignments.
+            </p>
+
+            <a class="btn" href="{{ url_for('notifications') }}">
+                View Notifications
+            </a>
+        </section>
+
+    </div>
+
+</main>
+
+</body>
+</html>
